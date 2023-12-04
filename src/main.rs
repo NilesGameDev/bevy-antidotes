@@ -1,6 +1,6 @@
 use antidotes::{
     core::maincamera,
-    npc::{badcell, goodcell},
+    npc::{badcell, cell, goodcell},
 };
 use bevy::prelude::*;
 
@@ -15,5 +15,6 @@ fn main() {
                 badcell::spawn_bad_cells,
             ),
         )
+        .add_systems(Update, (cell::destroy_cell, badcell::move_attack))
         .run();
 }

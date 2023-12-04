@@ -1,12 +1,15 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
-use super::cell::{Cell, CellAttribute};
+use super::cell::{Cell, CellAttribute, Collider};
 
 const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
+const GOOD_CELL_SIZE: f32 = 15.0;
 
 #[derive(Component)]
-pub struct GoodCell;
+pub struct GoodCell {
+    pub cell_size: f32, // TODO: move to the Cell struct instead?
+}
 
 pub fn spawn_good_cells(
     mut commands: Commands,
@@ -66,7 +69,7 @@ pub fn spawn_good_cells(
 
         commands.spawn((
             MaterialMesh2dBundle {
-                mesh: meshes.add(shape::Circle::new(15.).into()).into(),
+                mesh: meshes.add(shape::Circle::new(GOOD_CELL_SIZE).into()).into(),
                 material: materials.add(ColorMaterial::from(Color::GREEN)),
                 transform: Transform::from_translation(origin_point),
                 ..default()
@@ -74,11 +77,14 @@ pub fn spawn_good_cells(
             anim_cell,
             player,
             Cell,
-            GoodCell,
+            GoodCell {
+                cell_size: GOOD_CELL_SIZE,
+            },
             CellAttribute {
                 health: 100.,
                 immune_rate: 100,
             },
+            Collider,
         ));
 
         cell_count += 1;
