@@ -1,20 +1,25 @@
 use antidotes::{
-    core::maincamera,
-    npc::{badcell, cell, goodcell},
+    core::{maincamera, states, userinterface},
+    plugins::{game, gameover, menu},
 };
 use bevy::prelude::*;
 
 fn main() {
     App::new()
         .add_plugins(DefaultPlugins)
+        .add_event::<userinterface::ButtonClickEvent>()
+        .add_state::<states::GameState>()
         .add_systems(
             Startup,
+            (maincamera::setup_camera, userinterface::setup_resources),
+        )
+        .add_systems(
+            Update,
             (
-                maincamera::setup_camera,
-                goodcell::spawn_good_cells,
-                badcell::spawn_bad_cells,
+                userinterface::button_systems,
+                userinterface::play_button_click_sound,
             ),
         )
-        .add_systems(Update, (cell::destroy_cell, badcell::move_attack))
+        .add_plugins((menu::MenuPlugin, game::GamePlugin, gameover::GameOverPlugin))
         .run();
 }

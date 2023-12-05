@@ -6,6 +6,8 @@ use bevy::{
 };
 use rand::Rng;
 
+use crate::plugins::game::OnGameScreen;
+
 use super::{
     cell::{Cell, CellAttribute, Collider, CellAttack},
     goodcell::GoodCell,
@@ -96,7 +98,8 @@ pub fn spawn_bad_cells(
                 SearchRange {
                     range: BAD_CELL_SEARCH_RADIUS,
                 },
-                CellAttack::new(5.0, 0.2)
+                CellAttack::new(5.0, 0.2),
+                OnGameScreen // TODO: find a better way to add this component to a cell
             ))
             .with_children(|child_builder| {
                 child_builder.spawn((

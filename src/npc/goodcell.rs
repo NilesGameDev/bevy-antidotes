@@ -1,6 +1,8 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
+use crate::plugins::game::OnGameScreen;
+
 use super::cell::{Cell, CellAttribute, Collider};
 
 const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
@@ -85,6 +87,7 @@ pub fn spawn_good_cells(
                 immune_rate: 100,
             },
             Collider,
+            OnGameScreen // TODO: find a better way to add this component to a cell
         ));
 
         cell_count += 1;
