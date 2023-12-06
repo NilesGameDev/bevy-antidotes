@@ -9,7 +9,7 @@ use rand::Rng;
 use crate::plugins::game::OnGameScreen;
 
 use super::{
-    cell::{Cell, CellAttribute, Collider, CellAttack},
+    cell::{Cell, CellAttack, CellAttribute, Collider},
     goodcell::GoodCell,
 };
 
@@ -91,15 +91,16 @@ pub fn spawn_bad_cells(
                 Cell,
                 BadCell,
                 CellAttribute {
-                    health: 100.,
-                    immune_rate: 100,
+                    health: 100.0,
+                    immune: 100.0,
+                    infection: 0.0,
+                    cell_attack: CellAttack::new(5.0, 0.2)
                 },
                 Collider,
                 SearchRange {
                     range: BAD_CELL_SEARCH_RADIUS,
                 },
-                CellAttack::new(5.0, 0.2),
-                OnGameScreen // TODO: find a better way to add this component to a cell
+                OnGameScreen, // TODO: find a better way to add this component to a cell
             ))
             .with_children(|child_builder| {
                 child_builder.spawn((
@@ -121,7 +122,10 @@ pub fn spawn_bad_cells(
 pub fn move_attack(
     time: ResMut<Time>,
     mut badcell_query: Query<(&mut Transform, &SearchRange, &mut CellAttack), With<BadCell>>,
-    mut collision_query: Query<(&Transform, &GoodCell, &mut CellAttribute), (With<Collider>, Without<BadCell>)>,
+    mut collision_query: Query<
+        (&Transform, &GoodCell, &mut CellAttribute),
+        (With<Collider>, Without<BadCell>),
+    >,
 ) {
     let target_pos = Vec3::new(0., 0., 0.);
 
@@ -136,7 +140,13 @@ pub fn move_attack(
                 let attack_rate = cell_attack.attack_rate;
                 cell_attack.timer.tick(Duration::from_secs_f32(attack_rate));
                 if cell_attack.timer.finished() {
-                    cell_attr.inflict_dmg(&cell_attack.damage);
+                    cell_attr.inflict_dmg(cell_attack.damage);
+
+                    // TODO: refactor this
+                    let infect_proc_chance = rand::thread_rng().gen_range(1..=100);
+                    if infect_proc_chance <= 5 {
+                        cell_attr.infect(2.0);
+                    }
                 }
             } else {
                 let maybe_collide = collide(

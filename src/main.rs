@@ -1,6 +1,6 @@
 use antidotes::{
     core::{maincamera, states, userinterface},
-    plugins::{game, gameover, menu},
+    plugins::{antidote, game, gameover, menu, playerresource, gameprepare},
 };
 use bevy::prelude::*;
 
@@ -20,6 +20,13 @@ fn main() {
                 userinterface::play_button_click_sound,
             ),
         )
-        .add_plugins((menu::MenuPlugin, game::GamePlugin, gameover::GameOverPlugin))
+        .add_plugins((
+            antidote::AntidotePlugin,
+            playerresource::PlayerResourcePlugin,
+            menu::MenuPlugin,
+            gameprepare::GamePreparePlugin,
+            game::GamePlugin,
+            gameover::GameOverPlugin,
+        ))
         .run();
 }

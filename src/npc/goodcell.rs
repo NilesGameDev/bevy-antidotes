@@ -1,9 +1,9 @@
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
-use crate::plugins::game::OnGameScreen;
+use crate::plugins::{game::OnGameScreen, playerresource::PlayerResource};
 
-use super::cell::{Cell, CellAttribute, Collider};
+use super::cell::{Cell, CellAttribute, Collider, CellAttack};
 
 const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
 const GOOD_CELL_SIZE: f32 = 15.0;
@@ -15,6 +15,7 @@ pub struct GoodCell {
 
 pub fn spawn_good_cells(
     mut commands: Commands,
+    _: Res<PlayerResource>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut animations: ResMut<Assets<AnimationClip>>,
@@ -83,8 +84,10 @@ pub fn spawn_good_cells(
                 cell_size: GOOD_CELL_SIZE,
             },
             CellAttribute {
-                health: 100.,
-                immune_rate: 100,
+                health: 100.0,
+                immune: 100.0,
+                infection: 0.0,
+                cell_attack: CellAttack::new(1.0, 50.0)
             },
             Collider,
             OnGameScreen // TODO: find a better way to add this component to a cell

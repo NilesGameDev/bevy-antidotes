@@ -18,7 +18,13 @@ impl Plugin for GamePlugin {
         )
         .add_systems(
             Update,
-            (cell::destroy_cell, badcell::move_attack, game_loop).run_if(in_state(GameState::Game)),
+            (
+                cell::destroy_cell,
+                cell::track_cell_infection,
+                badcell::move_attack,
+                game_loop,
+            )
+                .run_if(in_state(GameState::Game)),
         )
         .add_systems(OnExit(GameState::Game), despawn_entities::<OnGameScreen>);
     }
