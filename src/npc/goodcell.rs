@@ -10,19 +10,23 @@ const GOOD_CELL_SIZE: f32 = 15.0;
 
 #[derive(Component)]
 pub struct GoodCell {
-    pub cell_size: f32, // TODO: move to the Cell struct instead?
+    pub cell_id: i32, // TODO: move to the Cell struct instead?
+    pub cell_size: f32
 }
+
+#[derive(Resource)]
+pub struct GoodCellId(pub i32);
 
 pub fn spawn_good_cells(
     mut commands: Commands,
-    _: Res<PlayerResource>,
+    mut player_resources: ResMut<PlayerResource>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut animations: ResMut<Assets<AnimationClip>>,
 ) {
     let mut cell_count = 0;
 
-    while cell_count < 20 {
+    for (id, good_cell_attr) in player_resources.cell_army.iter_mut() {
         let mut animation = AnimationClip::default();
         let mut player = AnimationPlayer::default();
         let mut origin_point = Vec3::new(0., 0., 0.);
@@ -70,6 +74,7 @@ pub fn spawn_good_cells(
 
         player.play(animations.add(animation)).repeat();
 
+        let cell_attr = good_cell_attr.copy();
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(GOOD_CELL_SIZE).into()).into(),
@@ -80,15 +85,8 @@ pub fn spawn_good_cells(
             anim_cell,
             player,
             Cell,
-            GoodCell {
-                cell_size: GOOD_CELL_SIZE,
-            },
-            CellAttribute {
-                health: 100.0,
-                immune: 100.0,
-                infection: 0.0,
-                cell_attack: CellAttack::new(1.0, 50.0)
-            },
+            GoodCell { cell_id: id.clone(), cell_size: 30.0},
+            good_cell_attr.clone(),
             Collider,
             OnGameScreen // TODO: find a better way to add this component to a cell
         ));

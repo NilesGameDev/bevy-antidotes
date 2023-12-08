@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use rand::Rng;
 
-use crate::plugins::{playerresource::PlayerResource, antidote::{SubstanceResource, SubstanceType}};
+use crate::plugins::{playerresource::PlayerResource, antidote::{SubstanceResource, SubstanceType, SubstanceIdGen}};
 
 use super::{goodcell::GoodCell, badcell::BadCell};
 
@@ -53,6 +53,7 @@ pub fn destroy_cell(
     mut commands: Commands,
     mut playerresource: ResMut<PlayerResource>,
     substance_resources: Res<SubstanceResource>,
+    mut substance_id_gen_res: ResMut<SubstanceIdGen>,
     mut query: Query<(Entity, &CellAttribute, Option<&BadCell>), With<Cell>>,
 ) {
     for (ent, cell_attr, maybe_badcell) in query.iter_mut() {
@@ -62,7 +63,9 @@ pub fn destroy_cell(
                 if drop_chance <= 10 {
                     let resource_len = substance_resources.0.len();
                     let random_substance_idx = rand::thread_rng().gen_range(0..resource_len);
+                    
                     let mut random_substance = substance_resources.0[random_substance_idx].clone();
+                    random_substance.id = substance_id_gen_res.0;
                     random_substance.value = rand::thread_rng().gen_range(-8..=15) as f32;
                     random_substance.substance_type = if random_substance.value < 0.0 {
                         SubstanceType::Bitter
@@ -71,7 +74,8 @@ pub fn destroy_cell(
                     } else {
                         SubstanceType::Sweet
                     };
-                    playerresource.substance_collection.push(random_substance);
+                    playerresource.substance_collection.insert(substance_id_gen_res.0, random_substance);
+                    substance_id_gen_res.0 += 1;
                 }
             }
             commands.entity(ent).despawn();
