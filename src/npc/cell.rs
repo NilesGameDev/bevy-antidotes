@@ -8,7 +8,7 @@ use super::{goodcell::GoodCell, badcell::BadCell};
 #[derive(Component)]
 pub struct Collider;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct CellAttribute {
     pub health: f32,
     pub immune: f32,
@@ -19,7 +19,7 @@ pub struct CellAttribute {
 impl CellAttribute {
     pub fn inflict_dmg(&mut self, damage: f32) {
         self.health -= damage;
-        self.health = f32::min(0.0, self.health);
+        self.health = f32::max(0.0, self.health);
     }
 
     pub fn infect(&mut self, rate: f32) {
@@ -30,7 +30,7 @@ impl CellAttribute {
 #[derive(Component)]
 pub struct Cell;
 
-#[derive(Component)]
+#[derive(Component, Clone)]
 pub struct CellAttack {
     pub attack_rate: f32, // as seconds
     pub damage: f32,
@@ -78,7 +78,7 @@ pub fn destroy_cell(
                     substance_id_gen_res.0 += 1;
                 }
             }
-            commands.entity(ent).despawn();
+            commands.entity(ent).despawn_recursive();
         }
     }
 }
@@ -88,7 +88,7 @@ pub fn track_cell_infection(
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut query: Query<(Entity, &GoodCell, &mut CellAttribute, &Handle<ColorMaterial>)>,
 ) {
-    for (ent, good_cell, mut cell_attr, color_mat_handle) in query.iter_mut() {
+    for (ent, _, mut cell_attr, color_mat_handle) in query.iter_mut() {
         if cell_attr.infection <= cell_attr.immune {
             continue;
         }

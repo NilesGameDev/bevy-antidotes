@@ -1,17 +1,23 @@
+use std::time::Duration;
+
 use bevy::{prelude::*, sprite::MaterialMesh2dBundle};
 use rand::Rng;
 
 use crate::plugins::{game::OnGameScreen, playerresource::PlayerResource};
 
-use super::cell::{Cell, CellAttribute, Collider, CellAttack};
+use super::{
+    badcell::BadCell,
+    cell::{Cell, CellAttribute, Collider},
+};
 
+const GOOD_CELL_ATTACK_RANGE: f32 = 10.0;
 const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
 const GOOD_CELL_SIZE: f32 = 15.0;
 
 #[derive(Component)]
 pub struct GoodCell {
     pub cell_id: i32, // TODO: move to the Cell struct instead?
-    pub cell_size: f32
+    pub cell_size: f32,
 }
 
 #[derive(Resource)]
@@ -74,7 +80,6 @@ pub fn spawn_good_cells(
 
         player.play(animations.add(animation)).repeat();
 
-        let cell_attr = good_cell_attr.copy();
         commands.spawn((
             MaterialMesh2dBundle {
                 mesh: meshes.add(shape::Circle::new(GOOD_CELL_SIZE).into()).into(),
@@ -85,12 +90,36 @@ pub fn spawn_good_cells(
             anim_cell,
             player,
             Cell,
-            GoodCell { cell_id: id.clone(), cell_size: 30.0},
+            GoodCell {
+                cell_id: id.clone(),
+                cell_size: 30.0,
+            },
             good_cell_attr.clone(),
             Collider,
-            OnGameScreen // TODO: find a better way to add this component to a cell
+            OnGameScreen, // TODO: find a better way to add this component to a cell
         ));
 
         cell_count += 1;
+    }
+}
+
+pub fn attack(
+    mut goodcell_query: Query<(&mut Transform, &mut CellAttribute), With<GoodCell>>,
+    mut collision_query: Query<(&Transform, &mut CellAttribute), (With<Collider>, With<BadCell>, Without<GoodCell>)>,
+) {
+    for (good_cell_trans, mut goodcell_attr) in goodcell_query.iter_mut() {
+        for (bad_cell_trans, mut badcell_attr) in collision_query.iter_mut() {
+            if Vec3::distance(good_cell_trans.translation, bad_cell_trans.translation)
+                <= GOOD_CELL_ATTACK_RANGE
+            {
+                let attack_rate = goodcell_attr.cell_attack.attack_rate;
+                goodcell_attr.cell_attack.timer.tick(Duration::from_secs_f32(attack_rate));
+                if goodcell_attr.cell_attack.timer.finished() {
+                    println!("goodcell dealing damage");
+                    let damage = goodcell_attr.cell_attack.damage;
+                    badcell_attr.inflict_dmg(damage);
+                }
+            }
+        }
     }
 }

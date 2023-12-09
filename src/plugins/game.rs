@@ -3,7 +3,7 @@ use bevy::prelude::*;
 use crate::{
     core::{despawn_entities, states::GameState},
     npc::{
-        badcell, cell,
+        badcell::{self, BadCell}, cell,
         goodcell::{self, GoodCell},
     },
 };
@@ -21,6 +21,7 @@ impl Plugin for GamePlugin {
             (
                 cell::destroy_cell,
                 cell::track_cell_infection,
+                goodcell::attack,
                 badcell::move_attack,
                 game_loop,
             )
@@ -33,8 +34,16 @@ impl Plugin for GamePlugin {
 #[derive(Component)]
 pub struct OnGameScreen;
 
-fn game_loop(query: Query<&GoodCell>, mut game_state: ResMut<NextState<GameState>>) {
-    if query.is_empty() {
+fn game_loop(
+    goodcell_query: Query<&GoodCell>,
+    badcell_query: Query<&BadCell>,
+    mut game_state: ResMut<NextState<GameState>>,
+) {
+    if goodcell_query.is_empty() {
         game_state.set(GameState::GameOver);
+    }
+
+    if badcell_query.is_empty() {
+        game_state.set(GameState::Prepare);
     }
 }

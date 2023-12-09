@@ -2,7 +2,7 @@ use bevy::prelude::*;
 
 pub const GAME_THEME_COLOR: Color = Color::hsl(160.0, 0.26, 0.54);
 pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
-const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
+pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
 const PRESSED_BUTTON: Color = Color::rgb(0.35, 0.75, 0.35);
 
 #[derive(Resource)]

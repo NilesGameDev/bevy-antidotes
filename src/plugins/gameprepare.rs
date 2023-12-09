@@ -38,7 +38,7 @@ enum GamePrepareButtonAction {
 #[derive(Component)]
 struct GamePrepareSubstanceCard(i32);
 
-fn setup_game_prepare_screen(mut commands: Commands, asset_server: Res<AssetServer>) {
+fn setup_game_prepare_screen(mut commands: Commands, asset_server: Res<AssetServer>, player_resources: Res<PlayerResource>) {
     let button_style = Style {
         width: Val::Px(360.0),
         height: Val::Px(80.0),
@@ -126,110 +126,118 @@ fn setup_game_prepare_screen(mut commands: Commands, asset_server: Res<AssetServ
                                     ..default()
                                 })
                                 .with_children(|parent| {
-                                    let mut count = 0;
-                                    while count < 6 {
+                                    for (substance_id, substance) in player_resources.substance_collection.iter() {
                                         parent
                                             .spawn((NodeBundle {
-                                                style: Style {
-                                                    width: Val::Percent(90.0),
-                                                    height: Val::Px(100.0),
-                                                    margin: UiRect::all(Val::Px(10.0)),
+                                                    style: Style {
+                                                        width: Val::Percent(80.0),
+                                                        height: Val::Px(100.0),
+                                                        margin: UiRect::all(Val::Px(10.0)),
+                                                        ..default()
+                                                    },
+                                                    background_color: Color::hex("#5D6965")
+                                                        .unwrap()
+                                                        .into(),
                                                     ..default()
                                                 },
-                                                background_color: Color::hex("#5D6965")
-                                                    .unwrap()
-                                                    .into(),
-                                                border_color: Color::RED.into(),
-                                                ..default()
-                                            },
-                                            GamePrepareSubstanceCard(count))
-                                        )
-                                            // Inside alignment of each substance card
-                                            .with_children(|parent| {
-                                                parent
-                                                    .spawn(NodeBundle {
-                                                        style: Style {
-                                                            width: Val::Percent(100.0),
-                                                            height: Val::Percent(100.0),
-                                                            flex_direction: FlexDirection::Row,
-                                                            ..default()
-                                                        },
-                                                        ..default()
-                                                    })
-                                                    .with_children(|parent| {
-                                                        // the substance image
-                                                        parent
-                                                            .spawn(NodeBundle {
-                                                                style: Style {
-                                                                    width: Val::Percent(10.0),
-                                                                    height: Val::Percent(100.0),
-                                                                    justify_content: JustifyContent::Center,
-                                                                    ..default()
-                                                                },
-                                                                background_color: Color::PURPLE.into(),
-                                                                ..default()
-                                                            })
-                                                            .with_children(|parent| {
-                                                                parent.spawn(ImageBundle {
-                                                                    image: UiImage::new(
-                                                                        test_tube_sprite.clone(),
-                                                                    ),
-                                                                    ..default()
-                                                                });
-                                                            });
-                                                        
-                                                        // the substance information
-                                                        parent.spawn(NodeBundle {
+                                                ))
+                                                // Inside alignment of each substance card
+                                                .with_children(|parent| {
+                                                    parent
+                                                        .spawn(NodeBundle {
                                                             style: Style {
-                                                                width: Val::Percent(90.0),
+                                                                width: Val::Percent(100.0),
                                                                 height: Val::Percent(100.0),
-                                                                flex_direction: FlexDirection::Column,
-                                                                margin: UiRect::left(Val::Px(30.0)),
+                                                                flex_direction: FlexDirection::Row,
                                                                 ..default()
                                                             },
                                                             ..default()
                                                         })
                                                         .with_children(|parent| {
-                                                            parent.spawn(NodeBundle {
-                                                                style: Style {
-                                                                    width: Val::Percent(20.0),
-                                                                    height: Val::Percent(100.0),
-                                                                    flex_direction: FlexDirection::Row,
+                                                            // the substance image
+                                                            parent
+                                                                .spawn(NodeBundle {
+                                                                    style: Style {
+                                                                        width: Val::Percent(20.0),
+                                                                        height: Val::Percent(100.0),
+                                                                        justify_content: JustifyContent::Center,
+                                                                        ..default()
+                                                                    },
                                                                     ..default()
-                                                                },
-                                                                ..default()
-                                                            })
-                                                            .with_children(|parent| {
-                                                                parent.spawn(TextBundle::from_section("Atagen", TextStyle {
-                                                                    color: Color::WHITE.into(),
-                                                                    ..default()
-                                                                }));
-                                                                parent.spawn(TextBundle::from_section("Sweet Substance", TextStyle {
-                                                                    color: Color::hex("#6CA894").unwrap().into(),
-                                                                    ..default()
-                                                                }));
-                                                            });
+                                                                })
+                                                                .with_children(|parent| {
+                                                                    parent.spawn((ButtonBundle {
+                                                                        style: Style {
+                                                                            width: Val::Percent(100.0),
+                                                                            height: Val::Percent(100.0),
+                                                                            ..default()
+                                                                        },
+                                                                        image: UiImage::new(
+                                                                            test_tube_sprite.clone(),
+                                                                        ),
+                                                                        background_color: NORMAL_BUTTON.into(),
+                                                                        ..default()
+                                                                    },
+                                                                    GamePrepareSubstanceCard(substance_id.clone()),
+                                                                    ));
+                                                                });
+                                                            
+                                                            // the substance information
                                                             parent.spawn(NodeBundle {
                                                                 style: Style {
                                                                     width: Val::Percent(80.0),
                                                                     height: Val::Percent(100.0),
-                                                                    align_content: AlignContent::Center,
-                                                                    justify_content: JustifyContent::Center,
+                                                                    flex_direction: FlexDirection::Column,
+                                                                    margin: UiRect::left(Val::Px(30.0)),
                                                                     ..default()
                                                                 },
                                                                 ..default()
                                                             })
                                                             .with_children(|parent| {
-                                                                parent.spawn(TextBundle::from_section("↑ 20.3 Attack", TextStyle {
-                                                                    font_size: 32.0, 
-                                                                    color: Color::GREEN.into(),
+                                                                parent.spawn(NodeBundle {
+                                                                    style: Style {
+                                                                        width: Val::Percent(20.0),
+                                                                        height: Val::Percent(100.0),
+                                                                        flex_direction: FlexDirection::Row,
+                                                                        ..default()
+                                                                    },
                                                                     ..default()
-                                                                }));
+                                                                })
+                                                                .with_children(|parent| {
+                                                                    parent.spawn(TextBundle::from_section(substance.name.clone(), TextStyle {
+                                                                        color: Color::WHITE.into(),
+                                                                        ..default()
+                                                                    }));
+                                                                    parent.spawn(TextBundle::from_section(substance.substance_type.to_string(), TextStyle {
+                                                                        color: Color::hex("#6CA894").unwrap().into(),
+                                                                        ..default()
+                                                                    }));
+                                                                });
+                                                                parent.spawn(NodeBundle {
+                                                                    style: Style {
+                                                                        width: Val::Percent(80.0),
+                                                                        height: Val::Percent(100.0),
+                                                                        align_content: AlignContent::Center,
+                                                                        justify_content: JustifyContent::Center,
+                                                                        ..default()
+                                                                    },
+                                                                    ..default()
+                                                                })
+                                                                .with_children(|parent| {
+                                                                    let value_txt = match substance.substance_type {
+                                                                        SubstanceType::Bitter => format!("{} {}", substance.value, substance.target_attribute.to_string()),
+                                                                        SubstanceType::Sweet => format!("+{} {}", substance.value, substance.target_attribute.to_string()),
+                                                                        SubstanceType::Balanced => "Create new 2 cells".to_string()
+                                                                    };
+                                                                    parent.spawn(TextBundle::from_section(value_txt, TextStyle {
+                                                                        font_size: 32.0, 
+                                                                        color: Color::GREEN.into(),
+                                                                        ..default()
+                                                                    }));
+                                                                });
                                                             });
                                                         });
                                                     });
-                                            });
-                                        count += 1;
                                     }
                                 });
                         });
@@ -318,12 +326,12 @@ fn game_prepare_btn_action(
                     let mut to_spawn_cell_count = 0;
                     let mut total_sweet = 0;
                     let mut total_bitter = 0;
-                    let mut sweet_factor = 1.0;
                     let mut total_attack_gain: f32 = 0.0;
                     let mut total_speed_gain: f32 = 0.0;
                     let mut total_immu_gain: f32 = 0.0;
                     let mut total_health_gain: f32 = 0.0;
                     for (_, substance) in player_resources.loaded_substances.iter() {
+                        let sweet_factor: f32;
                         (to_spawn_cell_count, total_sweet, total_bitter, sweet_factor) = match substance.substance_type  {
                             SubstanceType::Balanced => {
                                 (to_spawn_cell_count + 2, 0 ,0, 0.0)
@@ -362,7 +370,7 @@ fn game_prepare_btn_action(
                         player_resources.cell_army.insert(
                             cell_id,CellAttribute {
                             health: 50.0,
-                            cell_attack: CellAttack::new(2.0, 20.0),
+                            cell_attack: CellAttack::new(0.5, 20.0),
                             immune: 30.0,
                             infection: 0.0
                         });

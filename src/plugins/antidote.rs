@@ -1,3 +1,4 @@
+use std::fmt;
 use bevy::prelude::*;
 
 pub struct AntidotePlugin;
@@ -16,6 +17,16 @@ pub enum SubstanceType {
     Balanced,
 }
 
+impl fmt::Display for SubstanceType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            SubstanceType::Balanced => write!(f, "Balanced"),
+            SubstanceType::Sweet => write!(f, "Sweet"),
+            SubstanceType::Bitter => write!(f, "Bitter")
+        }
+    }
+}
+
 #[derive(Default, Clone)]
 pub enum TargetAttribute {
     Attack,
@@ -23,6 +34,17 @@ pub enum TargetAttribute {
     #[default]
     Immune,
     Health
+}
+
+impl fmt::Display for TargetAttribute {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            TargetAttribute::Attack => write!(f, "Attack"),
+            TargetAttribute::Speed => write!(f, "Attack per sec"),
+            TargetAttribute::Immune => write!(f, "Immune"),
+            TargetAttribute::Health => write!(f, "Health")
+        }
+    }
 }
 
 #[derive(Component, Default, Clone)] // TODO: or may be a resource?
@@ -68,5 +90,4 @@ fn setup_substances(mut commands: Commands) {
         },
     ];
     commands.insert_resource(SubstanceResource(substance_resources));
-    commands.insert_resource(SubstanceIdGen(0));
 }

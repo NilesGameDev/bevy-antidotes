@@ -15,7 +15,7 @@ use super::{
 
 // TODO: refactor constants to components or configs or resources instead?
 const BAD_CELL_SPAWN_RADIUS: f32 = 400.0;
-const BAD_CELL_SEARCH_RADIUS: f32 = 30.0;
+const BAD_CELL_SEARCH_RADIUS: f32 = 1000.0;
 const BAD_CELL_ATTACK_RANGE: f32 = 10.0;
 
 #[derive(Component)]
@@ -33,7 +33,7 @@ pub fn spawn_bad_cells(
 ) {
     let mut cell_count = 0;
 
-    while cell_count < 500 {
+    while cell_count < 10 {
         let mut animation = AnimationClip::default();
         let mut player = AnimationPlayer::default();
         let mut origin_point = Vec3::new(0., 0., 0.);
@@ -91,10 +91,10 @@ pub fn spawn_bad_cells(
                 Cell,
                 BadCell,
                 CellAttribute {
-                    health: 100.0,
+                    health: 10.0,
                     immune: 100.0,
                     infection: 0.0,
-                    cell_attack: CellAttack::new(5.0, 0.2)
+                    cell_attack: CellAttack::new(5.0, 0.2),
                 },
                 Collider,
                 SearchRange {
@@ -121,31 +121,37 @@ pub fn spawn_bad_cells(
 
 pub fn move_attack(
     time: ResMut<Time>,
-    mut badcell_query: Query<(&mut Transform, &SearchRange, &mut CellAttack), With<BadCell>>,
+    mut badcell_query: Query<
+        (&mut Transform, &SearchRange, &mut CellAttribute),
+        (With<BadCell>, With<OnGameScreen>),
+    >,
     mut collision_query: Query<
         (&Transform, &GoodCell, &mut CellAttribute),
         (With<Collider>, Without<BadCell>),
     >,
 ) {
     let target_pos = Vec3::new(0., 0., 0.);
-
-    for (mut bad_cell_trans, cell_search_range, mut cell_attack) in badcell_query.iter_mut() {
+    for (mut bad_cell_trans, cell_search_range, mut badcell_attr) in badcell_query.iter_mut() {
         let mut direction = (target_pos - bad_cell_trans.translation).normalize();
-        let rand_speed = rand::thread_rng().gen_range(2.0..=20.0);
+        let rand_speed = rand::thread_rng().gen_range(10.0..=80.0);
 
-        for (good_cell_trans, good_cell, mut cell_attr) in collision_query.iter_mut() {
+        for (good_cell_trans, good_cell, mut goodcell_attr) in collision_query.iter_mut() {
             if Vec3::distance(good_cell_trans.translation, bad_cell_trans.translation)
                 <= BAD_CELL_ATTACK_RANGE
             {
-                let attack_rate = cell_attack.attack_rate;
-                cell_attack.timer.tick(Duration::from_secs_f32(attack_rate));
-                if cell_attack.timer.finished() {
-                    cell_attr.inflict_dmg(cell_attack.damage);
+                let attack_rate = badcell_attr.cell_attack.attack_rate;
+                badcell_attr
+                    .cell_attack
+                    .timer
+                    .tick(Duration::from_secs_f32(attack_rate));
+                if badcell_attr.cell_attack.timer.finished() {
+                    let damage = badcell_attr.cell_attack.damage;
+                    goodcell_attr.inflict_dmg(damage);
 
                     // TODO: refactor this
                     let infect_proc_chance = rand::thread_rng().gen_range(1..=100);
                     if infect_proc_chance <= 5 {
-                        cell_attr.infect(2.0);
+                        goodcell_attr.infect(2.0);
                     }
                 }
             } else {
