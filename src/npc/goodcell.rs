@@ -115,7 +115,6 @@ pub fn attack(
                 let attack_rate = goodcell_attr.cell_attack.attack_rate;
                 goodcell_attr.cell_attack.timer.tick(Duration::from_secs_f32(attack_rate));
                 if goodcell_attr.cell_attack.timer.finished() {
-                    println!("goodcell dealing damage");
                     let damage = goodcell_attr.cell_attack.damage;
                     badcell_attr.inflict_dmg(damage);
                 }

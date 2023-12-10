@@ -8,6 +8,7 @@ edition = "2021"
 [dependencies]
 bevy = { version = "0.12.1", features = ["wav", "dynamic_linking"] }
 rand = "0.8.5"
+bevy_hanabi = "0.8"
 
 # Enable a small amount of optimization in debug mode
 [profile.dev]
