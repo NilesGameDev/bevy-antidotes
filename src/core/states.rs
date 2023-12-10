@@ -7,6 +7,7 @@ pub enum GameState {
     Menu,
     Prepare,
     Game,
+    GameFinish,
     GameOver,
     PostGame
 }

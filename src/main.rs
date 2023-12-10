@@ -1,6 +1,6 @@
 use antidotes::{
     core::{maincamera, states, userinterface},
-    plugins::{antidote, game, gameover, menu, playerresource, gameprepare},
+    plugins::{antidote, game, gameover, menu, playerresource, gameprepare, gamefinish},
 };
 use bevy::prelude::*;
 
@@ -26,6 +26,7 @@ fn main() {
             menu::MenuPlugin,
             gameprepare::GamePreparePlugin,
             game::GamePlugin,
+            gamefinish::GameFinishPlugin,
             gameover::GameOverPlugin,
         ))
         .run();

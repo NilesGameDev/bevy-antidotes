@@ -4,19 +4,24 @@ use crate::core;
 use crate::core::states::GameState;
 use crate::core::userinterface::{GAME_THEME_COLOR, NORMAL_BUTTON};
 
+use super::playerresource::PlayerResource;
+
 pub struct GameOverPlugin;
 
 impl Plugin for GameOverPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(OnEnter(GameState::GameOver), setup_game_over_screen)
-            .add_systems(
-                Update,
-                game_over_action.run_if(in_state(GameState::GameOver)),
-            )
-            .add_systems(
-                OnExit(GameState::GameOver),
-                core::despawn_entities::<OnGameOverScreen>,
-            );
+        app.add_systems(
+            OnEnter(GameState::GameOver),
+            (setup_game_over_screen, reset_player_resources),
+        )
+        .add_systems(
+            Update,
+            game_over_action.run_if(in_state(GameState::GameOver)),
+        )
+        .add_systems(
+            OnExit(GameState::GameOver),
+            core::despawn_entities::<OnGameOverScreen>,
+        );
     }
 }
 
@@ -133,4 +138,13 @@ fn game_over_action(
             }
         }
     }
+}
+
+fn reset_player_resources(mut player_resources: ResMut<PlayerResource>) {
+    player_resources.cell_army.clear();
+    player_resources.good_cell_id.0 = 0;
+    player_resources.loaded_substances.clear();
+    player_resources.substance_collection.clear();
+    player_resources.wave_num = 0;
+    player_resources.substance_id_gen.0 = 0;
 }

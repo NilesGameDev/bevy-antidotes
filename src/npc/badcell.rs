@@ -6,7 +6,7 @@ use bevy::{
 };
 use rand::Rng;
 
-use crate::plugins::game::OnGameScreen;
+use crate::plugins::{game::OnGameScreen, playerresource::PlayerResource};
 
 use super::{
     cell::{Cell, CellAttack, CellAttribute, Collider},
@@ -17,6 +17,8 @@ use super::{
 const BAD_CELL_SPAWN_RADIUS: f32 = 400.0;
 const BAD_CELL_SEARCH_RADIUS: f32 = 1000.0;
 const BAD_CELL_ATTACK_RANGE: f32 = 10.0;
+const BAD_CELL_BASE_COUNT: i32 = 30;
+const BAD_CELL_BASE_STRENGTH_MULTIPLIER: f32 = 0.25;
 
 #[derive(Component)]
 pub struct BadCell;
@@ -30,10 +32,18 @@ pub fn spawn_bad_cells(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     mut animations: ResMut<Assets<AnimationClip>>,
+    player_resource: ResMut<PlayerResource>
 ) {
+    let current_wave = player_resource.wave_num;
     let mut cell_count = 0;
+    let max_cell_count = BAD_CELL_BASE_COUNT + current_wave * 3;
+    let bad_cell_strength_multiplier = if current_wave != 0 && current_wave % 3 == 0 {
+        current_wave as f32 * BAD_CELL_BASE_STRENGTH_MULTIPLIER
+    } else {
+        1.0
+    };
 
-    while cell_count < 10 {
+    while cell_count < max_cell_count {
         let mut animation = AnimationClip::default();
         let mut player = AnimationPlayer::default();
         let mut origin_point = Vec3::new(0., 0., 0.);
@@ -84,6 +94,9 @@ pub fn spawn_bad_cells(
 
         player.play(animations.add(animation)).repeat();
 
+        let modify_speed = 5.7 - bad_cell_strength_multiplier * 0.7;
+        let modify_damage = 0.8 + bad_cell_strength_multiplier * 0.9;
+
         // TODO: clean up unused components!!!
         commands
             .spawn((
@@ -91,10 +104,10 @@ pub fn spawn_bad_cells(
                 Cell,
                 BadCell,
                 CellAttribute {
-                    health: 10.0,
+                    health: 10.0 * bad_cell_strength_multiplier,
                     immune: 100.0,
                     infection: 0.0,
-                    cell_attack: CellAttack::new(5.0, 0.2),
+                    cell_attack: CellAttack::new(modify_speed, modify_damage),
                 },
                 Collider,
                 SearchRange {
@@ -133,7 +146,8 @@ pub fn move_attack(
     let target_pos = Vec3::new(0., 0., 0.);
     for (mut bad_cell_trans, cell_search_range, mut badcell_attr) in badcell_query.iter_mut() {
         let mut direction = (target_pos - bad_cell_trans.translation).normalize();
-        let rand_speed = rand::thread_rng().gen_range(10.0..=80.0);
+        let rand_speed = rand::thread_rng().gen_range(5.0..=80.0);
+        let mut closest_distance_to_good_cell: f32 = f32::MAX;
 
         for (good_cell_trans, good_cell, mut goodcell_attr) in collision_query.iter_mut() {
             if Vec3::distance(good_cell_trans.translation, bad_cell_trans.translation)
@@ -162,9 +176,13 @@ pub fn move_attack(
                     Vec2::new(good_cell.cell_size, good_cell.cell_size),
                 );
 
-                if maybe_collide.is_some() {
+                let distance =
+                    Vec3::distance(good_cell_trans.translation, bad_cell_trans.translation);
+
+                if maybe_collide.is_some() && distance <= closest_distance_to_good_cell {
                     direction =
                         (good_cell_trans.translation - bad_cell_trans.translation).normalize();
+                    closest_distance_to_good_cell = distance;
                 }
             }
         }

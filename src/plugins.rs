@@ -4,3 +4,4 @@ pub mod gameover;
 pub mod gameprepare;
 pub mod antidote;
 pub mod playerresource;
+pub mod gamefinish;

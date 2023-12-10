@@ -1,5 +1,5 @@
-use std::fmt;
 use bevy::prelude::*;
+use std::fmt;
 
 pub struct AntidotePlugin;
 
@@ -22,7 +22,7 @@ impl fmt::Display for SubstanceType {
         match self {
             SubstanceType::Balanced => write!(f, "Balanced"),
             SubstanceType::Sweet => write!(f, "Sweet"),
-            SubstanceType::Bitter => write!(f, "Bitter")
+            SubstanceType::Bitter => write!(f, "Bitter"),
         }
     }
 }
@@ -33,7 +33,7 @@ pub enum TargetAttribute {
     Speed,
     #[default]
     Immune,
-    Health
+    Health,
 }
 
 impl fmt::Display for TargetAttribute {
@@ -42,7 +42,7 @@ impl fmt::Display for TargetAttribute {
             TargetAttribute::Attack => write!(f, "Attack"),
             TargetAttribute::Speed => write!(f, "Attack per sec"),
             TargetAttribute::Immune => write!(f, "Immune"),
-            TargetAttribute::Health => write!(f, "Health")
+            TargetAttribute::Health => write!(f, "Health"),
         }
     }
 }
@@ -55,9 +55,6 @@ pub struct Substance {
     pub value: f32,
     pub substance_type: SubstanceType,
 }
-
-#[derive(Resource)]
-pub struct SubstanceIdGen(pub i32);
 
 #[derive(Resource)]
 pub struct SubstanceResource(pub Vec<Substance>);
