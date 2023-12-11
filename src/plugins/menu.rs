@@ -4,12 +4,14 @@ use crate::core;
 use crate::core::states::GameState;
 use crate::core::userinterface::{GAME_THEME_COLOR, NORMAL_BUTTON};
 
+use super::playerresource::PlayerResource;
+
 pub struct MenuPlugin;
 
 impl Plugin for MenuPlugin {
     fn build(&self, app: &mut App) {
         app.add_state::<MenuState>()
-            .add_systems(OnEnter(GameState::Menu), setup_menu)
+            .add_systems(OnEnter(GameState::Menu), (setup_menu, reset_player_resources))
             .add_systems(OnEnter(MenuState::Main), setup_main_menu)
             .add_systems(
                 OnExit(MenuState::Main),
@@ -146,4 +148,13 @@ fn menu_action(
             }
         }
     }
+}
+
+fn reset_player_resources(mut player_resources: ResMut<PlayerResource>) {
+    player_resources.cell_army.clear();
+    player_resources.good_cell_id.0 = 0;
+    player_resources.loaded_substances.clear();
+    player_resources.substance_collection.clear();
+    player_resources.wave_num = 0;
+    player_resources.substance_id_gen.0 = 0;
 }

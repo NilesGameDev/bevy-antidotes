@@ -36,6 +36,10 @@ impl Plugin for GamePlugin {
         .add_systems(
             OnExit(GameState::GameFinish),
             despawn_entities::<OnGameScreen>,
+        )
+        .add_systems(
+            OnExit(GameState::GameOver),
+            despawn_entities::<OnGameScreen>,
         );
     }
 }
@@ -47,39 +51,29 @@ pub struct OnGameScreen;
 struct GameTimer(Timer);
 
 #[derive(Component)]
-pub struct CollectedSubstanceDisplay;
+pub struct CollectedSubstanceDisplay(pub i32);
 
 fn setup_ingame_resources(mut commands: Commands) {
     commands.insert_resource(GameTimer(Timer::from_seconds(2.0, TimerMode::Once)));
 }
 
 fn setup_game_ui(mut commands: Commands) {
-    commands
-        .spawn((
-            NodeBundle {
-                style: Style {
-                    width: Val::Auto,
-                    height: Val::Auto,
-                    align_content: AlignContent::End,
+    commands.spawn((
+        Text2dBundle {
+            text: Text::from_section(
+                "Collected substances: 0",
+                TextStyle {
+                    font_size: 32.0,
+                    color: GAME_THEME_COLOR,
                     ..default()
                 },
-                ..default()
-            },
-            OnGameScreen,
-        ))
-        .with_children(|parent| {
-            parent.spawn((
-                TextBundle::from_section(
-                    "Collected substances: 0",
-                    TextStyle {
-                        font_size: 32.0,
-                        color: GAME_THEME_COLOR,
-                        ..default()
-                    },
-                ),
-                CollectedSubstanceDisplay,
-            ));
-        });
+            ),
+            transform: Transform::from_translation(Vec3::new(1.5, 1.0, 0.0) * 320.0),
+            ..default()
+        },
+        OnGameScreen,
+        CollectedSubstanceDisplay(0),
+    ));
 }
 
 fn game_loop(

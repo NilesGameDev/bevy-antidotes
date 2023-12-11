@@ -73,16 +73,16 @@ pub fn destroy_cell(
         ),
         With<Cell>,
     >,
-    collected_sub_display_query: Query<(&Transform, With<CollectedSubstanceDisplay>)>,
+    mut collected_sub_display_query: Query<(&Transform, &mut Text, &mut CollectedSubstanceDisplay)>,
     mut animations: ResMut<Assets<AnimationClip>>,
 ) {
-    let (collected_sub_display_trans, _) = collected_sub_display_query.single();
+    let (collected_sub_display_trans, mut text_2d, mut collected_count) =
+        collected_sub_display_query.single_mut();
     let sub_attack_img: Handle<Image> = asset_server.load("sprites/sub_attack.png");
     let sub_speed_img: Handle<Image> = asset_server.load("sprites/sub_speed.png");
     let sub_immune_img: Handle<Image> = asset_server.load("sprites/sub_immune.png");
     let sub_health_img: Handle<Image> = asset_server.load("sprites/sub_health.png");
 
-    let mut temp = 0;
     for (ent, cell_trans, cell_attr, maybe_badcell, maybe_goodcell) in query.iter_mut() {
         if cell_attr.health <= 0.0 {
             if maybe_badcell.is_some() {
@@ -118,51 +118,55 @@ pub fn destroy_cell(
                     };
                     let mut animation = AnimationClip::default();
                     let mut player = AnimationPlayer::default();
-                    let anim_sub = Name::new(format!("anim_sub_{temp}"));
-                    temp += 1;
-                    println!("{}", cell_trans.translation);
+                    let anim_sub = Name::new(format!("anim_sub_{}", collected_count.0));
+                    collected_count.0 += 1;
+
                     animation.add_curve_to_path(
                         EntityPath {
                             parts: vec![anim_sub.clone()],
                         },
                         VariableCurve {
-                            keyframe_timestamps: vec![0.0, 5.0, 10.0],
+                            keyframe_timestamps: vec![0.0, 2.0],
                             keyframes: Keyframes::Translation(vec![
                                 cell_trans.translation,
-                                cell_trans.translation
-                                    + 100.0 * Vec3::new(0.0, 1.0, 0.0),
                                 collected_sub_display_trans.translation,
                             ]),
                         },
                     );
+                    animation.add_curve_to_path(
+                        EntityPath {
+                            parts: vec![anim_sub.clone()],
+                        },
+                        VariableCurve {
+                            keyframe_timestamps: vec![0.0, 1.8, 2.0],
+                            keyframes: Keyframes::Scale(vec![
+                                cell_trans.scale,
+                                cell_trans.scale,
+                                Vec3::ZERO,
+                            ]),
+                        },
+                    );
 
-                    player.play(animations.add(animation)).repeat();
-                    commands
-                        .spawn((
-                            NodeBundle {
-                                style: Style {
-                                    width: Val::Auto,
-                                    height: Val::Auto,
-                                    ..default()
-                                },
-                                transform: cell_trans.clone(),
+                    player.play(animations.add(animation));
+                    commands.spawn((
+                        SpriteBundle {
+                            sprite: Sprite {
+                                custom_size: Some(Vec2::new(30.0, 30.0)),
                                 ..default()
                             },
-                            OnGameScreen,
-                            player,
-                            anim_sub,
-                        ))
-                        .with_children(|parent| {
-                            parent.spawn((ImageBundle {
-                                style: Style {
-                                    width: Val::Px(30.0),
-                                    height: Val::Px(30.0),
-                                    ..default()
-                                },
-                                image: UiImage::new(substance_sprite),
-                                ..default()
-                            },));
-                        });
+                            texture: substance_sprite,
+                            transform: cell_trans.clone(),
+                            ..default()
+                        },
+                        OnGameScreen,
+                        player,
+                        anim_sub,
+                    ));
+
+                    if let Some(collected_text_section) = text_2d.sections.first_mut() {
+                        collected_text_section.value =
+                            format!("Collected substances: {}", collected_count.0);
+                    }
                 }
 
                 commands.spawn((
