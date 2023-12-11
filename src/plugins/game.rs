@@ -68,7 +68,7 @@ fn setup_game_ui(mut commands: Commands) {
                     ..default()
                 },
             ),
-            transform: Transform::from_translation(Vec3::new(1.5, 1.0, 0.0) * 320.0),
+            transform: Transform::from_translation(Vec3::new(1.0, 1.0, 0.0) * 320.0),
             ..default()
         },
         OnGameScreen,

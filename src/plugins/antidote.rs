@@ -27,7 +27,7 @@ impl fmt::Display for SubstanceType {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Clone, PartialEq, Eq)]
 pub enum TargetAttribute {
     Attack,
     Speed,
@@ -40,7 +40,7 @@ impl fmt::Display for TargetAttribute {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             TargetAttribute::Attack => write!(f, "Attack"),
-            TargetAttribute::Speed => write!(f, "Attack per sec"),
+            TargetAttribute::Speed => write!(f, "Attack Cooldown"),
             TargetAttribute::Immune => write!(f, "Immune"),
             TargetAttribute::Health => write!(f, "Health"),
         }

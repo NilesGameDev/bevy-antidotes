@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::plugins::gameprepare::GamePrepareButtonAction;
+
 pub const GAME_THEME_COLOR: Color = Color::hsl(160.0, 0.26, 0.54);
 pub const NORMAL_BUTTON: Color = Color::rgb(0.15, 0.15, 0.15);
 pub const HOVERED_BUTTON: Color = Color::rgb(0.25, 0.25, 0.25);
@@ -19,7 +21,7 @@ pub fn setup_resources(mut commands: Commands, asset_server: Res<AssetServer>) {
 pub fn button_systems(
     mut interaction_query: Query<
         (&Interaction, &mut BackgroundColor),
-        (Changed<Interaction>, With<Button>),
+        (Changed<Interaction>, With<Button>, Without<GamePrepareButtonAction>),
     >,
     mut btn_click_events: EventWriter<ButtonClickEvent>,
 ) {

@@ -1,15 +1,11 @@
 use bevy::prelude::*;
-use bevy_hanabi::{ParticleEffect, ParticleEffectBundle};
 use rand::Rng;
 
-use crate::{
-    core::particlesystem::CellExplodeEffectRes,
-    plugins::{
+use crate::plugins::{
         antidote::{SubstanceResource, SubstanceType, TargetAttribute},
         game::{CollectedSubstanceDisplay, OnGameScreen},
         playerresource::PlayerResource,
-    },
-};
+    };
 
 use super::{badcell::BadCell, goodcell::GoodCell};
 
@@ -64,7 +60,6 @@ impl CellAttack {
 //TODO: find a better way to handle a cell being destroyed as we can mutate the cell instead
 // for example: making bad cell turn "good" and vice versa
 pub fn destroy_cell(
-    explode_vfx_res: Res<CellExplodeEffectRes>,
     substance_resources: Res<SubstanceResource>,
     asset_server: Res<AssetServer>,
     mut commands: Commands,
@@ -93,7 +88,7 @@ pub fn destroy_cell(
         if cell_attr.health <= 0.0 {
             if maybe_badcell.is_some() {
                 let drop_chance = rand::thread_rng().gen_range(1..=100);
-                if drop_chance <= 10 {
+                if drop_chance <= 8 {
                     let resource_len = substance_resources.0.len();
                     let random_substance_idx = rand::thread_rng().gen_range(0..resource_len);
 
@@ -105,7 +100,7 @@ pub fn destroy_cell(
                     };
                     random_substance.substance_type = if random_substance.value < 0.0 {
                         SubstanceType::Bitter
-                    } else if random_substance.value == 0.0 {
+                    } else if f32::eq(&random_substance.value, &0.0) {
                         SubstanceType::Balanced
                     } else {
                         SubstanceType::Sweet
@@ -114,6 +109,10 @@ pub fn destroy_cell(
                         .substance_collection
                         .insert(random_substance.id, random_substance.clone());
                     player_resources.substance_id_gen.0 += 1;
+
+                    if random_substance.value < 0.0 && random_substance.target_attribute == TargetAttribute::Immune {
+                        random_substance.value *= -1.0;
+                    }
 
                     //TODO: refactor this
                     let substance_sprite = match random_substance.target_attribute {
@@ -174,15 +173,6 @@ pub fn destroy_cell(
                             format!("Collected substances: {}", collected_count.0);
                     }
                 }
-
-                commands.spawn((
-                    ParticleEffectBundle {
-                        effect: ParticleEffect::new(explode_vfx_res.0.clone()),
-                        transform: *cell_trans,
-                        ..Default::default()
-                    },
-                    OnGameScreen,
-                ));
             } else if let Some(maybe_goodcell) = maybe_goodcell {
                 player_resources.cell_army.remove(&maybe_goodcell.cell_id);
             }

@@ -73,7 +73,7 @@ impl Plugin for GamePreparePlugin {
 #[derive(Event, Default)]
 struct RedrawSubstanceListEvent;
 #[derive(Event, Default)]
-struct InfoMessageEvent(String);
+struct InfoMessageEvent(String, Color);
 #[derive(Event, Default)]
 struct AnimateTestTubeEvent;
 
@@ -84,16 +84,19 @@ struct OnGamePrepareScreen;
 struct OnCreateAntidoteScreen;
 #[derive(Component)]
 struct OnCellArrangementScreen;
+#[derive(Component)]
+struct CellAttrHoverPanel;
 
 // Game Prepare Core Components
-#[derive(Component)]
-enum GamePrepareButtonAction {
+#[derive(Component, Eq, PartialEq)]
+pub enum GamePrepareButtonAction {
     CreateAntidote,
     CellArrangement,
 }
 #[derive(Component)]
 enum CreateAntidoteButtonAction {
     ReturnToMainMenu,
+    UnloadAll,
     Inject,
     Go,
 }
@@ -133,17 +136,17 @@ fn setup_game_prepare(mut game_prepare_state: ResMut<NextState<GamePrepareState>
     game_prepare_state.set(GamePrepareState::CreateAntidote);
 }
 
-fn setup_game_prepare_screen(mut commands: Commands) {
+fn setup_game_prepare_screen(mut commands: Commands, player_resources: Res<PlayerResource>) {
     let button_style = Style {
         width: Val::Px(270.0),
-        height: Val::Px(60.0),
+        height: Val::Px(40.0),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
         margin: UiRect::left(Val::Px(1.0)),
         ..default()
     };
     let button_txt_style = TextStyle {
-        font_size: 28.0,
+        font_size: 25.0,
         color: GAME_THEME_COLOR,
         ..default()
     };
@@ -178,6 +181,27 @@ fn setup_game_prepare_screen(mut commands: Commands) {
                         "Prepare Lab",
                         TextStyle {
                             font_size: 80.0,
+                            color: GAME_THEME_COLOR,
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(5.0),
+                        align_content: AlignContent::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        format!("Wave: {}", player_resources.wave_num),
+                        TextStyle {
+                            font_size: 40.0,
                             color: GAME_THEME_COLOR,
                             ..default()
                         },
@@ -233,7 +257,24 @@ fn setup_create_antidote_screen(
     asset_server: Res<AssetServer>,
     mut redraw_events: EventWriter<RedrawSubstanceListEvent>,
     game_prepare_screen_query: Query<Entity, With<OnGamePrepareScreen>>,
+    mut game_prepare_screen_active_btn_query: Query<(
+        &mut BackgroundColor,
+        &GamePrepareButtonAction,
+    )>,
+    current_game_prepare_state: Res<State<GamePrepareState>>,
 ) {
+    // set color of button according to current active screen
+    for (mut bg_color, target_btn) in game_prepare_screen_active_btn_query.iter_mut() {
+        let current_state = current_game_prepare_state.get();
+        if *current_state == GamePrepareState::CreateAntidote
+            && *target_btn == GamePrepareButtonAction::CreateAntidote
+        {
+            *bg_color = Color::hex("#A8786C").unwrap().into();
+        } else {
+            *bg_color = NORMAL_BUTTON.into();
+        }
+    }
+
     let button_style = Style {
         width: Val::Px(360.0),
         height: Val::Px(80.0),
@@ -254,7 +295,7 @@ fn setup_create_antidote_screen(
             NodeBundle {
                 style: Style {
                     width: Val::Percent(100.0),
-                    height: Val::Percent(85.0),
+                    height: Val::Percent(75.0),
                     align_content: AlignContent::Center,
                     justify_content: JustifyContent::Center,
                     flex_direction: FlexDirection::Column,
@@ -268,9 +309,10 @@ fn setup_create_antidote_screen(
             parent
                 .spawn(NodeBundle {
                     style: Style {
-                        height: Val::Percent(90.0),
+                        height: Val::Percent(80.0),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
+                        margin: UiRect::bottom(Val::Px(30.0)),
                         ..default()
                     },
                     background_color: NORMAL_BUTTON.into(),
@@ -396,11 +438,26 @@ fn setup_create_antidote_screen(
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
                             },
+                            CreateAntidoteButtonAction::UnloadAll,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "Unload All",
+                                button_txt_style.clone(),
+                            ));
+                        });
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: button_style.clone(),
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
                             CreateAntidoteButtonAction::Inject,
                         ))
                         .with_children(|parent| {
                             parent.spawn(TextBundle::from_section(
-                                "Inject",
+                                "Inject Substances",
                                 button_txt_style.clone(),
                             ));
                         });
@@ -462,7 +519,24 @@ fn setup_cell_arrangement_screen(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<ColorMaterial>>,
     game_prepare_screen_query: Query<Entity, With<OnGamePrepareScreen>>,
+    mut game_prepare_screen_active_btn_query: Query<(
+        &mut BackgroundColor,
+        &GamePrepareButtonAction,
+    )>,
+    current_game_prepare_state: Res<State<GamePrepareState>>,
 ) {
+    // set color of button according to current active screen
+    for (mut bg_color, target_btn) in game_prepare_screen_active_btn_query.iter_mut() {
+        let current_state = current_game_prepare_state.get();
+        if *current_state == GamePrepareState::CellArrangement
+            && *target_btn == GamePrepareButtonAction::CellArrangement
+        {
+            *bg_color = Color::hex("#A8786C").unwrap().into();
+        } else {
+            *bg_color = NORMAL_BUTTON.into();
+        }
+    }
+
     for (id, good_cell_bundle) in player_resources.cell_army.iter_mut() {
         let mut cell_trans = good_cell_bundle.cell_trans;
         if cell_trans == Vec3::ZERO {
@@ -505,9 +579,11 @@ fn setup_cell_arrangement_screen(
                     margin: UiRect::right(Val::Px(30.0)),
                     ..default()
                 },
+                visibility: Visibility::Hidden,
                 ..default()
             },
             OnCellArrangementScreen,
+            CellAttrHoverPanel,
         ))
         .with_children(|parent| {
             parent
@@ -771,7 +847,8 @@ fn drag_hover_cell_arrangement(
     mut cell_attribute_hover_query: Query<(&mut Text, &CellAttributeHover)>,
     mut cell_arrangement_query: Query<(&GoodCell, &mut Transform)>,
     mut gizmos: Gizmos,
-    mut player_resources: ResMut<PlayerResource>,
+    player_resources: ResMut<PlayerResource>,
+    mut cell_attr_hover_panel_query: Query<&mut Visibility, With<CellAttrHoverPanel>>,
 ) {
     let (camera, camera_transform) = camera_query.single();
 
@@ -783,39 +860,80 @@ fn drag_hover_cell_arrangement(
         return;
     };
 
-        for (good_cell, mut cell_trans) in cell_arrangement_query.iter_mut() {
+    let mut cell_attr_hover_panel = cell_attr_hover_panel_query.single_mut();
+    let mut cursor_hit_cell = false;
+    for (good_cell, mut cell_trans) in cell_arrangement_query.iter_mut() {
         if Vec2::distance(cell_trans.translation.truncate(), point) <= good_cell.cell_size {
             if mouse_buttons.pressed(MouseButton::Left) {
                 cell_trans.translation = point.extend(0.0);
             }
 
             if let Some(good_cell_attr) = player_resources.cell_army.get(&good_cell.cell_id) {
-                for (text, cell_attr_hover) in cell_attribute_hover_query.iter_mut() {
-
+                for (mut text, cell_attr_hover) in cell_attribute_hover_query.iter_mut() {
+                    let text_val = text.sections.first_mut().unwrap();
+                    match cell_attr_hover {
+                        CellAttributeHover::Health => {
+                            text_val.value = format!("{:.2}", good_cell_attr.cell_attribute.health)
+                        }
+                        CellAttributeHover::Attack => {
+                            text_val.value =
+                                format!("{:.2}", good_cell_attr.cell_attribute.cell_attack.damage)
+                        }
+                        CellAttributeHover::Speed => {
+                            text_val.value = format!(
+                                "{:.2}",
+                                good_cell_attr.cell_attribute.cell_attack.attack_rate
+                            )
+                        }
+                        CellAttributeHover::Immune => {
+                            text_val.value = format!("{:.2}", good_cell_attr.cell_attribute.immune)
+                        }
+                        CellAttributeHover::Infection => {
+                            text_val.value =
+                                format!("{:.2}", good_cell_attr.cell_attribute.infection)
+                        }
+                    }
                 }
             }
+
+            cursor_hit_cell = true;
+            *cell_attr_hover_panel = Visibility::Visible;
         }
     }
 
+    if !cursor_hit_cell {
+        *cell_attr_hover_panel = Visibility::Hidden;
+    }
     gizmos.circle_2d(point, 5.0, Color::WHITE);
 }
 
 fn game_prepare_btn_action(
-    interaction_query: Query<
+    mut interaction_query: Query<
         (&Interaction, &GamePrepareButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
     current_game_prepare_state: Res<State<GamePrepareState>>,
+    cell_arrangement_query: Query<(&Transform, &GoodCell)>,
     mut game_prepare_state: ResMut<NextState<GamePrepareState>>,
+    mut player_resources: ResMut<PlayerResource>,
 ) {
     let current_state = current_game_prepare_state.get();
-    for (interaction, game_prepare_button_action) in &interaction_query {
+    for (interaction, game_prepare_button_action) in interaction_query.iter_mut() {
         if *interaction == Interaction::Pressed {
             match game_prepare_button_action {
                 GamePrepareButtonAction::CreateAntidote => {
                     if *current_state == GamePrepareState::CreateAntidote {
                         continue;
                     }
+                    // update the cell arrangement
+                    for (cell_trans, good_cell) in cell_arrangement_query.iter() {
+                        if let Some(corresponding_cell) =
+                            player_resources.cell_army.get_mut(&good_cell.cell_id)
+                        {
+                            corresponding_cell.cell_trans = cell_trans.translation;
+                        }
+                    }
+
                     game_prepare_state.set(GamePrepareState::CreateAntidote);
                 }
                 GamePrepareButtonAction::CellArrangement => {
@@ -838,6 +956,7 @@ fn create_antidote_btn_action(
     mut game_state: ResMut<NextState<GameState>>,
     mut game_prepare_state: ResMut<NextState<GamePrepareState>>,
     mut send_info_message_events: EventWriter<InfoMessageEvent>,
+    mut redraw_events: EventWriter<RedrawSubstanceListEvent>,
 ) {
     for (interaction, create_antidote_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
@@ -851,17 +970,31 @@ fn create_antidote_btn_action(
                         send_info_message_events.send(InfoMessageEvent(
                             "You have no cells in army. Try to create using Balanced substance!"
                                 .to_string(),
+                            Color::RED,
                         ));
                         continue;
                     }
+
                     game_state.set(GameState::Game);
                     game_prepare_state.set(GamePrepareState::Disabled);
                 }
+                CreateAntidoteButtonAction::UnloadAll => {
+                    let temp_loaded_substances = player_resources.loaded_substances.clone();
+                    player_resources
+                        .substance_collection
+                        .extend(temp_loaded_substances);
+                    player_resources.loaded_substances.clear();
+                    redraw_events.send_default();
+                }
                 CreateAntidoteButtonAction::Inject => {
                     if player_resources.loaded_substances.is_empty() {
-                        continue;
+                        send_info_message_events.send(InfoMessageEvent(
+                            "No substances put into tube!"
+                                .to_string(),
+                            Color::RED,
+                        ));
+                        return;
                     }
-
                     // now the fun part:
                     // Sweet + Bitter => create 1 good cell
                     // Balanced => create 2 good cells
@@ -945,8 +1078,10 @@ fn create_antidote_btn_action(
                     player_resources.loaded_substances.clear();
 
                     if counter > 0 {
-                        send_info_message_events
-                            .send(InfoMessageEvent("New cells created!".to_string()));
+                        send_info_message_events.send(InfoMessageEvent(
+                            "New cells created! You can view in Cell Arrangement!".to_string(),
+                            GAME_THEME_COLOR,
+                        ));
                     }
                 }
             }
@@ -967,9 +1102,10 @@ fn add_to_loaded_substances(
     for (interaction, substance_card) in &mut interaction_query {
         match *interaction {
             Interaction::Pressed => {
-                if player_resources.loaded_substances.len() > 4 {
+                if player_resources.loaded_substances.len() >= 6 {
                     send_info_message_events.send(InfoMessageEvent(
-                        "Can not put more than 4 substances to create an antidote!".to_string(),
+                        "Can not put more than 6 substances to create an antidote!".to_string(),
+                        Color::RED,
                     ));
                     continue;
                 }
@@ -1245,9 +1381,11 @@ fn display_info_message(
 ) {
     if !info_place_holder_query.is_empty() {
         let mut to_display_message = "".to_string();
+        let mut message_color = Color::RED;
         for message_event in info_message_events.read() {
             let message = &message_event.0;
             to_display_message = message.clone();
+            message_color = message_event.1;
             break;
         }
 
@@ -1263,7 +1401,7 @@ fn display_info_message(
                 to_display_message,
                 TextStyle {
                     font_size: 28.0,
-                    color: Color::RED,
+                    color: message_color,
                     ..default()
                 },
             ))
