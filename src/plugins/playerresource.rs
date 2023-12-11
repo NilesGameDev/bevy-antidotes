@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use bevy::prelude::*;
 
-use crate::npc::{goodcell::GoodCellId, cell::CellAttribute};
+use crate::npc::{goodcell::GoodCellId, cell::CellBundle};
 
 use super::antidote::Substance;
 
@@ -16,7 +16,7 @@ impl Plugin for PlayerResourcePlugin {
 
 #[derive(Resource)]
 pub struct PlayerResource {
-    pub cell_army: HashMap<i32, CellAttribute>,
+    pub cell_army: HashMap<i32, CellBundle>,
     pub substance_collection: HashMap<i32, Substance>,
     pub loaded_substances: HashMap<i32, Substance>,
     pub good_cell_id: GoodCellId,
@@ -28,7 +28,7 @@ pub struct PlayerResource {
 pub struct SubstanceIdGen(pub i32);
 
 fn setup_player_resources(mut commands: Commands) {
-    let cell_army: HashMap<i32, CellAttribute> = HashMap::new();
+    let cell_army: HashMap<i32, CellBundle> = HashMap::new();
     let substance_collection: HashMap<i32, Substance> = HashMap::new();
     let loaded_substances: HashMap<i32, Substance> = HashMap::new();
     let good_cell_id = GoodCellId(0);

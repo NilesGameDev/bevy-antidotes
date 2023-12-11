@@ -10,9 +10,9 @@ use super::{
     cell::{Cell, CellAttribute, Collider},
 };
 
-const GOOD_CELL_ATTACK_RANGE: f32 = 10.0;
-const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
-const GOOD_CELL_SIZE: f32 = 15.0;
+pub const GOOD_CELL_ATTACK_RANGE: f32 = 10.0;
+pub const GOOD_CELL_SPAWN_RADIUS: f32 = 200.0;
+pub const GOOD_CELL_SIZE: f32 = 15.0;
 
 #[derive(Component)]
 pub struct GoodCell {
@@ -32,14 +32,18 @@ pub fn spawn_good_cells(
 ) {
     let mut cell_count = 0;
 
-    for (id, good_cell_attr) in player_resources.cell_army.iter_mut() {
+    for (id, good_cell_bundle) in player_resources.cell_army.iter_mut() {
+        let good_cell_attr = &good_cell_bundle.cell_attribute;
         let mut animation = AnimationClip::default();
         let mut player = AnimationPlayer::default();
-        let mut origin_point = Vec3::new(0., 0., 0.);
-        origin_point.x =
-            rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
-        origin_point.y =
-            rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
+        let mut origin_point = good_cell_bundle.cell_trans;
+
+        if origin_point == Vec3::ZERO {
+            origin_point.x =
+                rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
+            origin_point.y =
+                rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
+        }
 
         // TODO: refactor the below code
         let anim_cell = Name::new(format!("anim_cell_{cell_count}"));
@@ -92,7 +96,7 @@ pub fn spawn_good_cells(
             Cell,
             GoodCell {
                 cell_id: id.clone(),
-                cell_size: 30.0,
+                cell_size: 15.0,
             },
             good_cell_attr.clone(),
             Collider,
@@ -105,7 +109,10 @@ pub fn spawn_good_cells(
 
 pub fn attack(
     mut goodcell_query: Query<(&mut Transform, &mut CellAttribute), With<GoodCell>>,
-    mut collision_query: Query<(&Transform, &mut CellAttribute), (With<Collider>, With<BadCell>, Without<GoodCell>)>,
+    mut collision_query: Query<
+        (&Transform, &mut CellAttribute),
+        (With<Collider>, With<BadCell>, Without<GoodCell>),
+    >,
 ) {
     for (good_cell_trans, mut goodcell_attr) in goodcell_query.iter_mut() {
         for (bad_cell_trans, mut badcell_attr) in collision_query.iter_mut() {
@@ -113,7 +120,10 @@ pub fn attack(
                 <= GOOD_CELL_ATTACK_RANGE
             {
                 let attack_rate = goodcell_attr.cell_attack.attack_rate;
-                goodcell_attr.cell_attack.timer.tick(Duration::from_secs_f32(attack_rate));
+                goodcell_attr
+                    .cell_attack
+                    .timer
+                    .tick(Duration::from_secs_f32(attack_rate));
                 if goodcell_attr.cell_attack.timer.finished() {
                     let damage = goodcell_attr.cell_attack.damage;
                     badcell_attr.inflict_dmg(damage);

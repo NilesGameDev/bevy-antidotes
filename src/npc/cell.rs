@@ -17,6 +17,12 @@ use super::{badcell::BadCell, goodcell::GoodCell};
 pub struct Collider;
 
 #[derive(Component, Clone)]
+pub struct CellBundle {
+    pub cell_trans: Vec3,
+    pub cell_attribute: CellAttribute
+}
+
+#[derive(Component, Clone)]
 pub struct CellAttribute {
     pub health: f32,
     pub immune: f32,

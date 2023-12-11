@@ -5,6 +5,8 @@ use crate::core::{
     states::GameState,
     userinterface::{GAME_THEME_COLOR, NORMAL_BUTTON},
 };
+use crate::npc::cell::CellAttribute;
+use crate::npc::goodcell::GoodCell;
 
 use super::playerresource::PlayerResource;
 
@@ -135,8 +137,15 @@ fn setup_game_finish_screen(mut commands: Commands) {
         });
 }
 
-fn update_wave_clear(mut player_resources: ResMut<PlayerResource>) {
+fn update_wave_clear(mut player_resources: ResMut<PlayerResource>, good_cell_query: Query<(&CellAttribute, &GoodCell)>) {
     player_resources.wave_num += 1;
+
+    // Update the fight statistic to player resources
+    for (good_cell_attr, good_cell) in good_cell_query.iter() {
+        if let Some(old_cell_bundle) = player_resources.cell_army.get_mut(&good_cell.cell_id) {
+            old_cell_bundle.cell_attribute = good_cell_attr.clone();
+        }
+    }
 }
 
 fn game_finish_action(

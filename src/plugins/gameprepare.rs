@@ -2,11 +2,14 @@ use bevy::a11y::accesskit::{NodeBuilder, Role};
 use bevy::a11y::AccessibilityNode;
 use bevy::input::mouse::{MouseScrollUnit, MouseWheel};
 use bevy::prelude::*;
+use bevy::sprite::MaterialMesh2dBundle;
+use rand::Rng;
 
 use crate::core;
 use crate::core::states::GameState;
 use crate::core::userinterface::{GAME_THEME_COLOR, NORMAL_BUTTON};
-use crate::npc::cell::{CellAttack, CellAttribute};
+use crate::npc::cell::{CellAttack, CellAttribute, CellBundle};
+use crate::npc::goodcell::{GoodCell, GOOD_CELL_SIZE, GOOD_CELL_SPAWN_RADIUS};
 
 use super::antidote::{Substance, SubstanceType, TargetAttribute};
 use super::playerresource::PlayerResource;
@@ -18,23 +21,46 @@ pub struct GamePreparePlugin;
 
 impl Plugin for GamePreparePlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<RedrawSubstanceListEvent>()
+        app.add_state::<GamePrepareState>()
+            .add_event::<RedrawSubstanceListEvent>()
             .add_event::<InfoMessageEvent>()
             .add_event::<AnimateTestTubeEvent>()
             .add_systems(
                 OnEnter(GameState::Prepare),
-                (setup_game_prepare_screen, setup_wave_resource),
+                (
+                    setup_game_prepare,
+                    setup_game_prepare_screen,
+                    setup_wave_resource,
+                ),
+            )
+            .add_systems(
+                OnEnter(GamePrepareState::CreateAntidote),
+                setup_create_antidote_screen,
+            )
+            .add_systems(
+                OnEnter(GamePrepareState::CellArrangement),
+                setup_cell_arrangement_screen,
             )
             .add_systems(
                 Update,
                 (
-                    redraw_substance_list.run_if(in_state(GameState::Prepare)),
                     game_prepare_btn_action.run_if(in_state(GameState::Prepare)),
-                    add_to_loaded_substances.run_if(in_state(GameState::Prepare)),
-                    mouse_scroll.run_if(in_state(GameState::Prepare)),
-                    display_info_message.run_if(in_state(GameState::Prepare)),
-                    animate_test_tube_fill.run_if(in_state(GameState::Prepare)),
+                    create_antidote_btn_action.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    redraw_substance_list.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    add_to_loaded_substances.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    mouse_scroll.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    display_info_message.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    animate_test_tube_fill.run_if(in_state(GamePrepareState::CreateAntidote)),
+                    drag_hover_cell_arrangement.run_if(in_state(GamePrepareState::CellArrangement)),
                 ),
+            )
+            .add_systems(
+                OnExit(GamePrepareState::CreateAntidote),
+                core::despawn_entities::<OnCreateAntidoteScreen>,
+            )
+            .add_systems(
+                OnExit(GamePrepareState::CellArrangement),
+                core::despawn_entities::<OnCellArrangementScreen>,
             )
             .add_systems(
                 OnExit(GameState::Prepare),
@@ -43,6 +69,7 @@ impl Plugin for GamePreparePlugin {
     }
 }
 
+// Game Prepare Events
 #[derive(Event, Default)]
 struct RedrawSubstanceListEvent;
 #[derive(Event, Default)]
@@ -50,54 +77,76 @@ struct InfoMessageEvent(String);
 #[derive(Event, Default)]
 struct AnimateTestTubeEvent;
 
+// Game Prepare Screens
 #[derive(Component)]
 struct OnGamePrepareScreen;
+#[derive(Component)]
+struct OnCreateAntidoteScreen;
+#[derive(Component)]
+struct OnCellArrangementScreen;
 
+// Game Prepare Core Components
 #[derive(Component)]
 enum GamePrepareButtonAction {
+    CreateAntidote,
+    CellArrangement,
+}
+#[derive(Component)]
+enum CreateAntidoteButtonAction {
     ReturnToMainMenu,
     Inject,
     Go,
 }
+#[derive(Clone, Copy, Default, Eq, PartialEq, Debug, Hash, States)]
+enum GamePrepareState {
+    CreateAntidote,
+    CellArrangement,
+    #[default]
+    Disabled,
+}
 
+// Game Prepare Util Components
 #[derive(Component)]
 struct GamePrepareSubstanceCard(i32);
-
 #[derive(Component, Default)]
 struct ScrollingList {
     position: f32,
 }
-
 #[derive(Component)]
 struct InfoMessageUiHolder;
+#[derive(Component)]
+struct TestTubeHolder;
+#[derive(Component)]
+enum CellAttributeHover {
+    Health,
+    Attack,
+    Speed,
+    Immune,
+    Infection,
+}
 
+// Game Prepare Resources
 #[derive(Resource, Deref, DerefMut)]
 struct DisplayTimer(Timer);
 
-#[derive(Component)]
-struct TestTubeHolder;
+fn setup_game_prepare(mut game_prepare_state: ResMut<NextState<GamePrepareState>>) {
+    game_prepare_state.set(GamePrepareState::CreateAntidote);
+}
 
-fn setup_game_prepare_screen(
-    mut commands: Commands,
-    asset_server: Res<AssetServer>,
-    mut redraw_events: EventWriter<RedrawSubstanceListEvent>,
-) {
+fn setup_game_prepare_screen(mut commands: Commands) {
     let button_style = Style {
-        width: Val::Px(360.0),
-        height: Val::Px(80.0),
-        margin: UiRect::all(Val::Px(20.0)),
+        width: Val::Px(270.0),
+        height: Val::Px(60.0),
         justify_content: JustifyContent::Center,
         align_items: AlignItems::Center,
+        margin: UiRect::left(Val::Px(1.0)),
         ..default()
     };
-
     let button_txt_style = TextStyle {
-        font_size: 32.0,
+        font_size: 28.0,
         color: GAME_THEME_COLOR,
         ..default()
     };
-
-    let test_tube_sprite: Handle<Image> = asset_server.load("sprites/test-tube.png");
 
     commands
         .spawn((
@@ -116,11 +165,115 @@ fn setup_game_prepare_screen(
             parent
                 .spawn(NodeBundle {
                     style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(15.0),
+                        align_content: AlignContent::Center,
+                        justify_content: JustifyContent::Center,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent.spawn(TextBundle::from_section(
+                        "Prepare Lab",
+                        TextStyle {
+                            font_size: 80.0,
+                            color: GAME_THEME_COLOR,
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        width: Val::Percent(100.0),
+                        height: Val::Percent(10.0),
+                        align_content: AlignContent::End,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: button_style.clone(),
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
+                            GamePrepareButtonAction::CreateAntidote,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "Create Antidotes",
+                                button_txt_style.clone(),
+                            ));
+                        });
+                    parent
+                        .spawn((
+                            ButtonBundle {
+                                style: button_style.clone(),
+                                background_color: NORMAL_BUTTON.into(),
+                                ..default()
+                            },
+                            GamePrepareButtonAction::CellArrangement,
+                        ))
+                        .with_children(|parent| {
+                            parent.spawn(TextBundle::from_section(
+                                "Cell Arrangement",
+                                button_txt_style.clone(),
+                            ));
+                        });
+                });
+        });
+}
+
+fn setup_create_antidote_screen(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut redraw_events: EventWriter<RedrawSubstanceListEvent>,
+    game_prepare_screen_query: Query<Entity, With<OnGamePrepareScreen>>,
+) {
+    let button_style = Style {
+        width: Val::Px(360.0),
+        height: Val::Px(80.0),
+        margin: UiRect::all(Val::Px(20.0)),
+        justify_content: JustifyContent::Center,
+        align_items: AlignItems::Center,
+        ..default()
+    };
+    let button_txt_style = TextStyle {
+        font_size: 32.0,
+        color: GAME_THEME_COLOR,
+        ..default()
+    };
+    let test_tube_sprite: Handle<Image> = asset_server.load("sprites/test-tube.png");
+
+    let create_antidote_screen_ent = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Percent(100.0),
+                    height: Val::Percent(85.0),
+                    align_content: AlignContent::Center,
+                    justify_content: JustifyContent::Center,
+                    flex_direction: FlexDirection::Column,
+                    ..default()
+                },
+                ..default()
+            },
+            OnCreateAntidoteScreen,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
                         height: Val::Percent(90.0),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
                         ..default()
                     },
+                    background_color: NORMAL_BUTTON.into(),
                     ..default()
                 })
                 .with_children(|parent| {
@@ -131,7 +284,6 @@ fn setup_game_prepare_screen(
                                 height: Val::Percent(100.0),
                                 align_items: AlignItems::Center,
                                 justify_content: JustifyContent::Center,
-                                margin: UiRect::all(Val::Px(20.0)),
                                 flex_direction: FlexDirection::Column,
                                 ..default()
                             },
@@ -143,7 +295,7 @@ fn setup_game_prepare_screen(
                                 NodeBundle {
                                     style: Style {
                                         width: Val::Percent(100.0),
-                                        height: Val::Percent(100.0),
+                                        height: Val::Percent(30.0),
                                         align_items: AlignItems::Center,
                                         justify_content: JustifyContent::Center,
                                         ..default()
@@ -175,7 +327,7 @@ fn setup_game_prepare_screen(
                                 .with_children(|parent| {
                                     parent.spawn((ImageBundle {
                                         style: Style {
-                                            width: Val::Px(450.0),
+                                            width: Val::Px(400.0),
                                             ..default()
                                         },
                                         image: UiImage::new(test_tube_sprite.clone()),
@@ -213,6 +365,7 @@ fn setup_game_prepare_screen(
             parent
                 .spawn(NodeBundle {
                     style: Style {
+                        height: Val::Percent(15.0),
                         flex_direction: FlexDirection::Row,
                         align_items: AlignItems::Center,
                         justify_content: JustifyContent::Center,
@@ -228,7 +381,7 @@ fn setup_game_prepare_screen(
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
                             },
-                            GamePrepareButtonAction::ReturnToMainMenu,
+                            CreateAntidoteButtonAction::ReturnToMainMenu,
                         ))
                         .with_children(|parent| {
                             parent.spawn(TextBundle::from_section(
@@ -243,7 +396,7 @@ fn setup_game_prepare_screen(
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
                             },
-                            GamePrepareButtonAction::Inject,
+                            CreateAntidoteButtonAction::Inject,
                         ))
                         .with_children(|parent| {
                             parent.spawn(TextBundle::from_section(
@@ -258,7 +411,7 @@ fn setup_game_prepare_screen(
                                 background_color: NORMAL_BUTTON.into(),
                                 ..default()
                             },
-                            GamePrepareButtonAction::Go,
+                            CreateAntidoteButtonAction::Go,
                         ))
                         .with_children(|parent| {
                             parent.spawn(TextBundle::from_section(
@@ -267,7 +420,14 @@ fn setup_game_prepare_screen(
                             ));
                         });
                 });
-        });
+        })
+        .id();
+
+    let game_prepare_screen_ent = game_prepare_screen_query.single();
+
+    commands
+        .entity(game_prepare_screen_ent)
+        .add_child(create_antidote_screen_ent);
 
     redraw_events.send_default();
 }
@@ -295,22 +455,398 @@ fn setup_wave_resource(mut commands: Commands, mut player_resources: ResMut<Play
     commands.insert_resource(DisplayTimer(Timer::from_seconds(4.0, TimerMode::Repeating)));
 }
 
+fn setup_cell_arrangement_screen(
+    asset_server: Res<AssetServer>,
+    mut commands: Commands,
+    mut player_resources: ResMut<PlayerResource>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    game_prepare_screen_query: Query<Entity, With<OnGamePrepareScreen>>,
+) {
+    for (id, good_cell_bundle) in player_resources.cell_army.iter_mut() {
+        let mut cell_trans = good_cell_bundle.cell_trans;
+        if cell_trans == Vec3::ZERO {
+            cell_trans.x =
+                rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
+            cell_trans.y =
+                rand::thread_rng().gen_range(-GOOD_CELL_SPAWN_RADIUS..=GOOD_CELL_SPAWN_RADIUS);
+        }
+        commands.spawn((
+            MaterialMesh2dBundle {
+                mesh: meshes.add(shape::Circle::new(GOOD_CELL_SIZE).into()).into(),
+                material: materials.add(ColorMaterial::from(Color::GREEN)),
+                transform: Transform::from_translation(cell_trans),
+                ..default()
+            },
+            GoodCell {
+                cell_id: id.clone(),
+                cell_size: GOOD_CELL_SIZE,
+            },
+            OnCellArrangementScreen,
+        ));
+
+        good_cell_bundle.cell_trans = cell_trans;
+    }
+
+    let sub_attack_img: Handle<Image> = asset_server.load("sprites/sub_attack.png");
+    let sub_speed_img: Handle<Image> = asset_server.load("sprites/sub_speed.png");
+    let sub_immune_img: Handle<Image> = asset_server.load("sprites/sub_immune.png");
+    let sub_health_img: Handle<Image> = asset_server.load("sprites/sub_health.png");
+    let sub_infection_img: Handle<Image> = asset_server.load("sprites/sub_infection.png");
+    let cell_attr_card_ent = commands
+        .spawn((
+            NodeBundle {
+                style: Style {
+                    width: Val::Auto,
+                    height: Val::Auto,
+                    justify_content: JustifyContent::Center,
+                    align_self: AlignSelf::End,
+                    flex_direction: FlexDirection::Column,
+                    margin: UiRect::right(Val::Px(30.0)),
+                    ..default()
+                },
+                ..default()
+            },
+            OnCellArrangementScreen,
+        ))
+        .with_children(|parent| {
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                align_content: AlignContent::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextBundle::from_section(
+                                    "0",
+                                    TextStyle {
+                                        font_size: 23.0,
+                                        ..default()
+                                    },
+                                ),
+                                CellAttributeHover::Health,
+                            ));
+                        });
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            width: Val::Px(35.0),
+                            height: Val::Px(35.0),
+                            ..default()
+                        },
+                        image: UiImage::new(sub_health_img.clone()),
+                        ..default()
+                    });
+                    parent.spawn(TextBundle::from_section(
+                        "Health",
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::hex("#fb5b39").unwrap(),
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                align_content: AlignContent::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextBundle::from_section(
+                                    "0",
+                                    TextStyle {
+                                        font_size: 23.0,
+                                        ..default()
+                                    },
+                                ),
+                                CellAttributeHover::Attack,
+                            ));
+                        });
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            width: Val::Px(35.0),
+                            height: Val::Px(35.0),
+                            ..default()
+                        },
+                        image: UiImage::new(sub_attack_img.clone()),
+                        ..default()
+                    });
+                    parent.spawn(TextBundle::from_section(
+                        "Attack Damage",
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::hex("#f8cc3c").unwrap(),
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                align_content: AlignContent::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextBundle::from_section(
+                                    "0",
+                                    TextStyle {
+                                        font_size: 23.0,
+                                        ..default()
+                                    },
+                                ),
+                                CellAttributeHover::Speed,
+                            ));
+                        });
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            width: Val::Px(35.0),
+                            height: Val::Px(35.0),
+                            ..default()
+                        },
+                        image: UiImage::new(sub_speed_img.clone()),
+                        ..default()
+                    });
+                    parent.spawn(TextBundle::from_section(
+                        "Speed (as seconds)",
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::hex("#783eb0").unwrap(),
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                align_content: AlignContent::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextBundle::from_section(
+                                    "0",
+                                    TextStyle {
+                                        font_size: 23.0,
+                                        ..default()
+                                    },
+                                ),
+                                CellAttributeHover::Immune,
+                            ));
+                        });
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            width: Val::Px(35.0),
+                            height: Val::Px(35.0),
+                            ..default()
+                        },
+                        image: UiImage::new(sub_immune_img.clone()),
+                        ..default()
+                    });
+                    parent.spawn(TextBundle::from_section(
+                        "Immunity",
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::hex("#22aaa7").unwrap(),
+                            ..default()
+                        },
+                    ));
+                });
+            parent
+                .spawn(NodeBundle {
+                    style: Style {
+                        flex_direction: FlexDirection::Row,
+                        ..default()
+                    },
+                    ..default()
+                })
+                .with_children(|parent| {
+                    parent
+                        .spawn(NodeBundle {
+                            style: Style {
+                                margin: UiRect::right(Val::Px(10.0)),
+                                align_content: AlignContent::Center,
+                                justify_content: JustifyContent::Center,
+                                ..default()
+                            },
+                            ..default()
+                        })
+                        .with_children(|parent| {
+                            parent.spawn((
+                                TextBundle::from_section(
+                                    "0",
+                                    TextStyle {
+                                        font_size: 23.0,
+                                        ..default()
+                                    },
+                                ),
+                                CellAttributeHover::Infection,
+                            ));
+                        });
+                    parent.spawn(ImageBundle {
+                        style: Style {
+                            width: Val::Px(35.0),
+                            height: Val::Px(35.0),
+                            ..default()
+                        },
+                        image: UiImage::new(sub_infection_img.clone()),
+                        ..default()
+                    });
+                    parent.spawn(TextBundle::from_section(
+                        "Infection",
+                        TextStyle {
+                            font_size: 20.0,
+                            color: Color::hex("#fc5d41").unwrap(),
+                            ..default()
+                        },
+                    ));
+                });
+        })
+        .id();
+
+    let game_prepare_screen_ent = game_prepare_screen_query.single();
+    commands
+        .entity(game_prepare_screen_ent)
+        .add_child(cell_attr_card_ent);
+}
+
+fn drag_hover_cell_arrangement(
+    mouse_buttons: Res<Input<MouseButton>>,
+    camera_query: Query<(&Camera, &GlobalTransform)>,
+    windows: Query<&Window>,
+    mut cell_attribute_hover_query: Query<(&mut Text, &CellAttributeHover)>,
+    mut cell_arrangement_query: Query<(&GoodCell, &mut Transform)>,
+    mut gizmos: Gizmos,
+    mut player_resources: ResMut<PlayerResource>,
+) {
+    let (camera, camera_transform) = camera_query.single();
+
+    let Some(cursor_position) = windows.single().cursor_position() else {
+        return;
+    };
+    // Calculate a world position based on the cursor's position.
+    let Some(point) = camera.viewport_to_world_2d(camera_transform, cursor_position) else {
+        return;
+    };
+
+        for (good_cell, mut cell_trans) in cell_arrangement_query.iter_mut() {
+        if Vec2::distance(cell_trans.translation.truncate(), point) <= good_cell.cell_size {
+            if mouse_buttons.pressed(MouseButton::Left) {
+                cell_trans.translation = point.extend(0.0);
+            }
+
+            if let Some(good_cell_attr) = player_resources.cell_army.get(&good_cell.cell_id) {
+                for (text, cell_attr_hover) in cell_attribute_hover_query.iter_mut() {
+
+                }
+            }
+        }
+    }
+
+    gizmos.circle_2d(point, 5.0, Color::WHITE);
+}
+
 fn game_prepare_btn_action(
     interaction_query: Query<
         (&Interaction, &GamePrepareButtonAction),
         (Changed<Interaction>, With<Button>),
     >,
-    mut player_resources: ResMut<PlayerResource>,
-    mut game_state: ResMut<NextState<GameState>>,
-    mut send_info_message_events: EventWriter<InfoMessageEvent>,
+    current_game_prepare_state: Res<State<GamePrepareState>>,
+    mut game_prepare_state: ResMut<NextState<GamePrepareState>>,
 ) {
+    let current_state = current_game_prepare_state.get();
     for (interaction, game_prepare_button_action) in &interaction_query {
         if *interaction == Interaction::Pressed {
             match game_prepare_button_action {
-                GamePrepareButtonAction::ReturnToMainMenu => {
-                    game_state.set(GameState::Menu);
+                GamePrepareButtonAction::CreateAntidote => {
+                    if *current_state == GamePrepareState::CreateAntidote {
+                        continue;
+                    }
+                    game_prepare_state.set(GamePrepareState::CreateAntidote);
                 }
-                GamePrepareButtonAction::Go => {
+                GamePrepareButtonAction::CellArrangement => {
+                    if *current_state == GamePrepareState::CellArrangement {
+                        continue;
+                    }
+                    game_prepare_state.set(GamePrepareState::CellArrangement);
+                }
+            }
+        }
+    }
+}
+
+fn create_antidote_btn_action(
+    interaction_query: Query<
+        (&Interaction, &CreateAntidoteButtonAction),
+        (Changed<Interaction>, With<Button>),
+    >,
+    mut player_resources: ResMut<PlayerResource>,
+    mut game_state: ResMut<NextState<GameState>>,
+    mut game_prepare_state: ResMut<NextState<GamePrepareState>>,
+    mut send_info_message_events: EventWriter<InfoMessageEvent>,
+) {
+    for (interaction, create_antidote_button_action) in &interaction_query {
+        if *interaction == Interaction::Pressed {
+            match create_antidote_button_action {
+                CreateAntidoteButtonAction::ReturnToMainMenu => {
+                    game_state.set(GameState::Menu);
+                    game_prepare_state.set(GamePrepareState::Disabled);
+                }
+                CreateAntidoteButtonAction::Go => {
                     if player_resources.cell_army.is_empty() {
                         send_info_message_events.send(InfoMessageEvent(
                             "You have no cells in army. Try to create using Balanced substance!"
@@ -318,9 +854,10 @@ fn game_prepare_btn_action(
                         ));
                         continue;
                     }
-                    game_state.set(GameState::Game)
+                    game_state.set(GameState::Game);
+                    game_prepare_state.set(GamePrepareState::Disabled);
                 }
-                GamePrepareButtonAction::Inject => {
+                CreateAntidoteButtonAction::Inject => {
                     if player_resources.loaded_substances.is_empty() {
                         continue;
                     }
@@ -338,19 +875,19 @@ fn game_prepare_btn_action(
                     for (_, substance) in player_resources.loaded_substances.iter() {
                         let sweet_factor: f32;
                         match substance.substance_type {
-                                SubstanceType::Balanced => {
-                                    to_spawn_cell_count += 2;
-                                    sweet_factor = 0.0;
-                                }
-                                SubstanceType::Bitter => {
-                                    total_bitter += 1;
-                                    sweet_factor = -1.0;
-                                }
-                                SubstanceType::Sweet => {
-                                    total_sweet += 1;
-                                    sweet_factor = 1.0;
-                                }
-                            };
+                            SubstanceType::Balanced => {
+                                to_spawn_cell_count += 2;
+                                sweet_factor = 0.0;
+                            }
+                            SubstanceType::Bitter => {
+                                total_bitter += 1;
+                                sweet_factor = -1.0;
+                            }
+                            SubstanceType::Sweet => {
+                                total_sweet += 1;
+                                sweet_factor = 1.0;
+                            }
+                        };
 
                         match substance.target_attribute {
                             TargetAttribute::Attack => {
@@ -376,24 +913,29 @@ fn game_prepare_btn_action(
                     };
 
                     // apply modified attribute to all cell
-                    for (_, each_cell) in player_resources.cell_army.iter_mut() {
-                        each_cell.cell_attack.damage += total_attack_gain;
-                        each_cell.cell_attack.attack_rate += f32::min(total_speed_gain, 0.2);
-                        each_cell.immune += total_immu_gain;
-                        each_cell.health += total_health_gain;
-                        each_cell.infection += total_add_infection;
+                    for (_, each_cell_bundle) in player_resources.cell_army.iter_mut() {
+                        each_cell_bundle.cell_attribute.cell_attack.damage += total_attack_gain;
+                        each_cell_bundle.cell_attribute.cell_attack.attack_rate +=
+                            f32::min(total_speed_gain, 0.2);
+                        each_cell_bundle.cell_attribute.immune += total_immu_gain;
+                        each_cell_bundle.cell_attribute.health += total_health_gain;
+                        each_cell_bundle.cell_attribute.infection += total_add_infection;
                     }
 
+                    // spawn new cells
                     let mut counter = 0;
                     let mut cell_id = player_resources.good_cell_id.0;
                     while counter < to_spawn_cell_count {
                         player_resources.cell_army.insert(
                             cell_id,
-                            CellAttribute {
-                                health: 50.0,
-                                cell_attack: CellAttack::new(0.5, 20.0),
-                                immune: 30.0,
-                                infection: 0.0,
+                            CellBundle {
+                                cell_trans: Vec3::ZERO,
+                                cell_attribute: CellAttribute {
+                                    health: 50.0,
+                                    cell_attack: CellAttack::new(0.5, 20.0),
+                                    immune: 30.0,
+                                    infection: 0.0,
+                                },
                             },
                         );
                         counter += 1;
@@ -403,9 +945,8 @@ fn game_prepare_btn_action(
                     player_resources.loaded_substances.clear();
 
                     if counter > 0 {
-                        send_info_message_events.send(InfoMessageEvent(
-                            "New cells created!".to_string(),
-                        ));
+                        send_info_message_events
+                            .send(InfoMessageEvent("New cells created!".to_string()));
                     }
                 }
             }
