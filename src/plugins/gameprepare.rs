@@ -399,7 +399,7 @@ fn setup_create_antidote_screen(
                                     },
                                     ..default()
                                 },
-                                ScrollingList::default(),
+                                ScrollingList { ..default() },
                                 AccessibilityNode(NodeBuilder::new(Role::List)),
                             ));
                         });
@@ -492,7 +492,7 @@ fn setup_create_antidote_screen(
 fn setup_wave_resource(mut commands: Commands, mut player_resources: ResMut<PlayerResource>) {
     if player_resources.wave_num == 0 {
         let mut count = 0;
-        while count < 2 {
+        while count < 3 {
             let substance_id = player_resources.substance_id_gen.0;
             player_resources.substance_collection.insert(
                 substance_id,
@@ -989,8 +989,7 @@ fn create_antidote_btn_action(
                 CreateAntidoteButtonAction::Inject => {
                     if player_resources.loaded_substances.is_empty() {
                         send_info_message_events.send(InfoMessageEvent(
-                            "No substances put into tube!"
-                                .to_string(),
+                            "No substances put into tube!".to_string(),
                             Color::RED,
                         ));
                         return;

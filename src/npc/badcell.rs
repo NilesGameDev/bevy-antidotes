@@ -17,7 +17,7 @@ use super::{
 const BAD_CELL_SPAWN_RADIUS: f32 = 400.0;
 const BAD_CELL_SEARCH_RADIUS: f32 = 1000.0;
 const BAD_CELL_ATTACK_RANGE: f32 = 10.0;
-const BAD_CELL_BASE_COUNT: i32 = 60;
+const BAD_CELL_BASE_COUNT: i32 = 25;
 const BAD_CELL_BASE_STRENGTH_MULTIPLIER: f32 = 0.25;
 
 #[derive(Component)]

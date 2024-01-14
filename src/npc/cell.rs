@@ -2,10 +2,10 @@ use bevy::prelude::*;
 use rand::Rng;
 
 use crate::plugins::{
-        antidote::{SubstanceResource, SubstanceType, TargetAttribute},
-        game::{CollectedSubstanceDisplay, OnGameScreen},
-        playerresource::PlayerResource,
-    };
+    antidote::{SubstanceResource, SubstanceType, TargetAttribute},
+    game::{CollectedSubstanceDisplay, OnGameScreen},
+    playerresource::PlayerResource,
+};
 
 use super::{badcell::BadCell, goodcell::GoodCell};
 
@@ -15,7 +15,7 @@ pub struct Collider;
 #[derive(Component, Clone)]
 pub struct CellBundle {
     pub cell_trans: Vec3,
-    pub cell_attribute: CellAttribute
+    pub cell_attribute: CellAttribute,
 }
 
 #[derive(Component, Clone)]
@@ -88,7 +88,7 @@ pub fn destroy_cell(
         if cell_attr.health <= 0.0 {
             if maybe_badcell.is_some() {
                 let drop_chance = rand::thread_rng().gen_range(1..=100);
-                if drop_chance <= 8 {
+                if drop_chance <= 12 {
                     let resource_len = substance_resources.0.len();
                     let random_substance_idx = rand::thread_rng().gen_range(0..resource_len);
 
@@ -110,8 +110,24 @@ pub fn destroy_cell(
                         .insert(random_substance.id, random_substance.clone());
                     player_resources.substance_id_gen.0 += 1;
 
-                    if random_substance.value < 0.0 && random_substance.target_attribute == TargetAttribute::Immune {
+                    if random_substance.value < 0.0
+                        && random_substance.target_attribute == TargetAttribute::Immune
+                    {
                         random_substance.value *= -1.0;
+                    } else if random_substance.value > 0.0
+                        && random_substance.target_attribute == TargetAttribute::Immune
+                    {
+                        random_substance.value *= -1.0;
+                    }
+
+                    if random_substance.value < 0.0 && random_substance.target_attribute == TargetAttribute::Speed {
+                        random_substance.substance_type = SubstanceType::Sweet
+                    }
+
+                    let drop_chance_balanced = rand::thread_rng().gen_range(1..=100);
+                    if drop_chance_balanced < 10 {
+                        random_substance.substance_type = SubstanceType::Balanced;
+                        random_substance.value = 0.0;
                     }
 
                     //TODO: refactor this
